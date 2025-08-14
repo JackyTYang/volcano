@@ -20,7 +20,7 @@ Package plugin is using for HuaWei Ascend pin affinity schedule frame.
 package plugin
 
 import (
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 
@@ -61,7 +61,7 @@ type SchedulerPlugin interface {
 // FaultHandler fault handler for job
 type FaultHandler interface {
 	Execute(*ScheduleEnv, *framework.Session) error
-	CheckNodeNPUByTask(*api.TaskInfo, NPUNode) error
+	CheckNodeNPUByTask(*api.TaskInfo, *NPUNode) error
 	ScoreBestNPUNodes(*api.TaskInfo, map[string]float64)
 	PreStopAction(*ScheduleEnv) error
 }

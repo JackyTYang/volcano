@@ -22,7 +22,7 @@ package module910x8
 import (
 	"fmt"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	"volcano.sh/volcano/pkg/scheduler/plugins/ascend-volcano-plugin/common/util"
 )

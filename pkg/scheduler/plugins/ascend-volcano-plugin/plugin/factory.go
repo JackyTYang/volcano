@@ -31,7 +31,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/apis/pkg/apis/scheduling"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/conf"
@@ -276,7 +276,9 @@ func initConfsFromSsn(confs []conf.Configuration) []config.Configuration {
 func (sHandle *ScheduleHandler) initJobsPlugin() {
 	for _, vcJob := range sHandle.Jobs {
 		if vcJob.policyHandler == nil {
-			klog.V(util.LogErrorLev).Infof("initJobsPlugin %s's plugin not register.", vcJob.Name)
+			if vcJob.ReqNPUNum > 0 {
+				klog.V(util.LogErrorLev).Infof("initJobsPlugin %s's plugin not register.", vcJob.Name)
+			}
 			continue
 		}
 		if err := vcJob.policyHandler.InitMyJobPlugin(vcJob.SchedulerJobAttr, sHandle.ScheduleEnv); err != nil {
@@ -299,6 +301,10 @@ func (sHandle *ScheduleHandler) initCache() {
 // preStartPlugin preStart plugin action.
 func (sHandle *ScheduleHandler) preStartPlugin(ssn *framework.Session) {
 	for _, job := range sHandle.Jobs {
+		// policyHandler of non-NPU job not be inited
+		if job.policyHandler == nil {
+			continue
+		}
 		if err := job.policyHandler.PreStartAction(ssn); err != nil {
 			if strings.Contains(err.Error(), util.ArgumentError) {
 				continue
@@ -450,7 +456,7 @@ func (sHandle *ScheduleHandler) BatchNodeOrderFn(task *api.TaskInfo,
 	klog.V(util.LogDebugLev).Infof("Enter batchNodeOrderFn")
 	defer klog.V(util.LogDebugLev).Infof("leaving batchNodeOrderFn")
 
-	if !isNPUTask(task) {
+	if !util.IsNPUTask(task) {
 		return nil, nil
 	}
 	if len(sHandle.Nodes) == 0 {

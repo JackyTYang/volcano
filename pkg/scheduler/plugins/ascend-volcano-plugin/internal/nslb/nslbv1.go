@@ -24,7 +24,7 @@ import (
 	"fmt"
 	"sort"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 
@@ -40,7 +40,7 @@ func (th *TorHandlerV1) PreStartAction(ssn *framework.Session) error {
 	if th.globalTorEnv == nil {
 		return fmt.Errorf("prestart action is failed by globalTorEnv is nil")
 	}
-	if th.Job.SchedulingTaskNum == 0 {
+	if th.Job.SchedulingTaskNum == 0 || th.Job.SchedulingTaskNum == len(th.Job.Tasks) {
 		return nil
 	}
 	th.initEnableSliceId()

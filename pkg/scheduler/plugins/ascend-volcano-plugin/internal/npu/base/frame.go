@@ -24,7 +24,7 @@ import (
 	"fmt"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 

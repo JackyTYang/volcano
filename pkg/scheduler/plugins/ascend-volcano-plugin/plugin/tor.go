@@ -29,7 +29,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 
@@ -266,6 +266,9 @@ func (tl *TorList) initTorShareStatus(jobs map[api.JobID]SchedulerJob) {
 			continue
 		}
 		for _, task := range job.Tasks {
+			if !task.IsNPUTask() {
+				continue
+			}
 			if tor, ok := tl.torMaps[tl.torIpMap[task.NodeName]]; ok {
 				tor.setTorIsSharedTor(task.Annotation[isSharedTor])
 				tor.setTorIsHealthy(task.Annotation[isHealthy])

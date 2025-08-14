@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 
 	"volcano.sh/volcano/pkg/scheduler/plugins/ascend-volcano-plugin/common/util"
@@ -200,7 +200,7 @@ func (n *NPUNode) initVChips(ni *api.NodeInfo, taskTemplate map[string]map[strin
 		klog.V(util.LogDebugLev).Infof("vNode %s %s.", n.Name, err)
 	}
 	for _, ti := range ni.Tasks {
-		if !isNPUTask(ti) {
+		if !util.IsNPUTask(ti) {
 			continue
 		}
 		n.VNode.addNPUResource(ti.Pod, chipTotalRes, taskTemplate)

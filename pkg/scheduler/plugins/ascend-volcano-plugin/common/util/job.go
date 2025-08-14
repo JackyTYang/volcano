@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 )
 
@@ -120,7 +120,7 @@ func (nJob *NPUJob) IsNPUJob() bool {
 
 // GetSchedulingTaskNum get the num of scheduling task
 func (nJob *NPUJob) GetSchedulingTaskNum() int {
-	if nJob == nil || !nJob.IsNPUJob() {
+	if nJob == nil {
 		return 0
 	}
 	schedulingTaskNum := 0

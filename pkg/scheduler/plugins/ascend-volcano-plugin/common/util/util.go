@@ -31,7 +31,7 @@ import (
 	"strings"
 
 	"k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 )
 
@@ -295,7 +295,7 @@ func GetDeviceType(devList map[string]string) string {
 			return Ascend310
 		}
 	}
-	klog.V(LogErrorLev).Info("cannot decide device type from dev list")
+	klog.V(LogDebugLev).Info("cannot decide device type from dev list")
 	return Ascend910
 }
 
@@ -406,4 +406,15 @@ func CheckPodNameOrSpace(checkItem, podParam string, maxLength int) error {
 		return errors.New("does not meet regex")
 	}
 	return nil
+}
+
+// IsNPUTask to judge the task either is NPU task or not.
+func IsNPUTask(nT *api.TaskInfo) bool {
+	for k := range nT.Resreq.ScalarResources {
+		// must contain "huawei.com/"
+		if strings.Contains(string(k), HwPreName) {
+			return true
+		}
+	}
+	return false
 }

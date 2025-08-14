@@ -27,7 +27,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"volcano.sh/volcano/pkg/scheduler/api"
 	"volcano.sh/volcano/pkg/scheduler/framework"
 
@@ -203,7 +203,7 @@ func (fJob *FaultJob) ForceDeleteJob(schedulerJob *plugin.SchedulerJob,
 	}
 	var isMasterFault bool
 	for _, fTask := range fJob.FaultTasks {
-		if fTask.IsFaultTask && fTask.NodeRankIndex == util.Rank0 {
+		if fTask.IsFaultTask && fTask.NodeRankIndex == util.Rank0 && fTask.IsNpuTask {
 			isMasterFault = true
 		}
 	}
@@ -326,10 +326,8 @@ func (fJob *FaultJob) updateSuperPodsReschdInfo(env plugin.ScheduleEnv) {
 		}
 		env.SuperPodInfo.SuperPodFaultTaskNodes[fJob.JobUID] = nodesName
 	}
-	if _, ok := env.SuperPodInfo.SuperPodReschdInfo[fJob.JobUID]; !ok {
-		if len(fJob.SuperPods) > 0 {
-			env.SuperPodInfo.SuperPodReschdInfo[fJob.JobUID] = fJob.SuperPods
-		}
+	if len(fJob.SuperPods) > 0 {
+		env.SuperPodInfo.SuperPodReschdInfo[fJob.JobUID] = fJob.SuperPods
 	}
 	klog.V(util.LogInfoLev).Infof("cache superpods %+v", env.SuperPodInfo.SuperPodReschdInfo[fJob.JobUID])
 }
@@ -491,7 +489,7 @@ func (fJob *FaultJob) getRestartInfos() (string, bool) {
 	var reasonList []FaultReasonList
 	var isMasterFault bool
 	for _, fTask := range fJob.FaultTasks {
-		if fTask.IsFaultTask && fTask.NodeRankIndex == util.Rank0 {
+		if fTask.IsFaultTask && fTask.NodeRankIndex == util.Rank0 && fTask.IsNpuTask {
 			isMasterFault = true
 		}
 		if fTask.Reason != nil {
