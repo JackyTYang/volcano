@@ -3,8 +3,10 @@ package vnpu
 import (
 	"errors"
 	"strings"
+	"sync"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
@@ -22,7 +24,44 @@ type NPUDevices struct { //schedulerHandler, including all the scheduler cache
 }
 
 func NewNPUDevices(name string, node *v1.Node) *NPUDevices {
-	return &NPUDevices{}
+	return &NPUDevices{
+		Name: name,
+		NodeInf: NodeInf{
+			Name:       name,
+			Annotation: make(map[string]string),
+			Label:      make(map[string]string),
+			Capability: make(map[v1.ResourceName]float64),
+			Allocate:   make(map[v1.ResourceName]float64),
+			Idle:       make(map[v1.ResourceName]float64),
+		},
+		NPUDevice: NPUDevice{
+			VT: VTemplate{
+				Temp: Ascend310P,
+				Data: map[string]VResource{
+					VNPUTempVir01:        {Aicore: 1, Aicpu: 1, DVPP: AscendDVPPEnabledNull},
+					VNPUTempVir02:        {Aicore: NPUIndex2, Aicpu: NPUIndex2, DVPP: AscendDVPPEnabledNull},
+					VNPUTempVir02C1:      {Aicore: NPUIndex2, Aicpu: 1, DVPP: AscendDVPPEnabledNull},
+					VNPUTempVir04:        {Aicore: NPUIndex4, Aicpu: NPUIndex4, DVPP: AscendDVPPEnabledNull},
+					VNPUTempVir04C3:      {Aicore: NPUIndex4, Aicpu: NPUIndex3, DVPP: AscendDVPPEnabledNull},
+					VNPUTempVir04C3NDVPP: {Aicore: NPUIndex4, Aicpu: NPUIndex3, DVPP: AscendDVPPEnabledOff},
+					VNPUTempVir04C4cDVPP: {Aicore: NPUIndex4, Aicpu: NPUIndex4, DVPP: AscendDVPPEnabledOn},
+				},
+			},
+			Chips:            make(map[int]*VChip),
+			UnhealthyChipIds: make(map[int]struct{}),
+			DowngradeCache:   make(map[string]struct{}, MapInitNum),
+			ConCache:         make(map[string]map[types.UID]struct{}),
+		},
+		FrameAttr: VolcanoFrame{
+			VJobTemplate: make(map[string]map[string]VResource),
+			ConfigParameters: ConfigParameters{
+				StaticParameters: StaticParameters{
+					OnceInit:       &sync.Once{},
+					IsFirstSession: PtrInit(true),
+				},
+			},
+		},
+	}
 }
 
 // AddResource adds the pod to NPU pool if it is assigned
@@ -35,12 +74,11 @@ func (ns *NPUDevices) AddResource(pod *v1.Pod) {
 			ns.NodeInf.Name, err)
 	}
 
-	// to judge whether this pod has been downgraded in this node
-	_, ok := ns.DowngradeCache[pod.Name]
-	if ok {
-		podRes = ns.downgradeTaskAICPU(podRes)
+	coreAnnotation, ok := pod.Annotations[AscendNPUCore]
+	if !ok {
+		return
 	}
-	ascendNPUCoreSplit := strings.Split(pod.Annotations[AscendNPUCore], "-")
+	ascendNPUCoreSplit := strings.Split(coreAnnotation, "-")
 
 	var allocChipID, chipVTemplate string
 
@@ -66,12 +104,12 @@ func (ns *NPUDevices) SubResource(pod *v1.Pod) {
 			ns.NodeInf.Name, err)
 	}
 
-	// to judge whether this pod has been downgraded in this node
-	_, ok := ns.DowngradeCache[pod.Name]
-	if ok {
-		podRes = ns.downgradeTaskAICPU(podRes)
+	coreAnnotation, ok := pod.Annotations[AscendNPUCore]
+	if !ok {
+		return
 	}
-	ascendNPUCoreSplit := strings.Split(pod.Annotations[AscendNPUCore], "-")
+	
+	ascendNPUCoreSplit := strings.Split(coreAnnotation, "-")
 
 	var allocChipID, chipVTemplate string
 
