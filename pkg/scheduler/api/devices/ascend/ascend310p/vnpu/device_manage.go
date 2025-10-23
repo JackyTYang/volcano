@@ -1,6 +1,7 @@
 package vnpu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -9,7 +10,9 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -332,7 +335,12 @@ func (ns *NPUDevices) getAiCoreNumFromPod(pod *v1.Pod) (int, error) {
 		}
 		return int(coreNum.Value()), nil
 	}
-	return 0, fmt.Errorf("getAiCoreNumFromTask get resource requests failed")
+
+	klog.V(LogInfoLev).Infof("No containers in this pod requests huawei.com/npu-core")
+	return 0, nil
+
+	// original npu scheduling logic may lead to too much inval error in pod's log file
+	//return 0, fmt.Errorf("getAiCoreNumFromTask get resource requests failed")
 }
 
 // PreCheckNodePredicate PreCheck Predicate nodes.
@@ -501,7 +509,7 @@ func (ns *NPUDevices) taskAICPUCanBeDowngrade(podResReq VResource) bool {
 }
 
 // SetNPUTopologyToPodFn write chip to pod annotation AscendNPUCore
-func (ns *NPUDevices) SetNPUTopologyToPodFn(pod *v1.Pod, podResReq VResource, allocChipID string, chipVTemplate VTemplate) {
+func (ns *NPUDevices) SetNPUTopologyToPodFn(kubeClient kubernetes.Interface, pod *v1.Pod, podResReq VResource, allocChipID string, chipVTemplate VTemplate) {
 	if ns == nil || pod == nil {
 		klog.V(LogDebugLev).Infof("SetNPUTopologyToPodFn failed: %s", ArgumentError)
 		return
@@ -511,6 +519,13 @@ func (ns *NPUDevices) SetNPUTopologyToPodFn(pod *v1.Pod, podResReq VResource, al
 	// 1. whole card
 	if ns.IsResourceWholeCard(podResReq.Aicore) {
 		pod.Annotations[AscendNPUCore] = allocChipID
+
+		patch := AddNPUAllocationPatch(allocChipID, "", tmp)
+		_, err := kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.TODO(), pod.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			klog.V(LogErrorLev).Infof("patch pod %s failed: %v", pod.Name, err)
+		}
+
 		klog.V(LogInfoLev).Infof("dynamic vnpu setNPUTopologyToPod %s top:%s.", pod.Name, allocChipID)
 		return
 	}
@@ -520,6 +535,13 @@ func (ns *NPUDevices) SetNPUTopologyToPodFn(pod *v1.Pod, podResReq VResource, al
 			continue
 		}
 		pod.Annotations[AscendNPUCore] = fmt.Sprintf("%s-%s", allocChipID, curTemplate)
+
+		patch := AddNPUAllocationPatch(allocChipID, curTemplate, tmp)
+		_, err := kubeClient.CoreV1().Pods(pod.Namespace).Patch(context.TODO(), pod.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			klog.V(LogErrorLev).Infof("patch pod %s failed: %v", pod.Name, err)
+		}
+
 		klog.V(LogInfoLev).Infof("dynamic vnpu setNPUTopologyToPod %s top:%s.", pod.Name,
 			pod.Annotations[AscendNPUCore])
 		return
@@ -602,4 +624,24 @@ func (ns *NPUDevices) selectChipFromNodeSegment(vChip []*VChip, vRes VResource) 
 	}
 
 	return "", fmt.Errorf("selectChipFromNodeSegment available chip not found for req <%d>", vRes.Aicore)
+}
+
+func escapeJSONPointer(p string) string {
+	p = strings.Replace(p, "~", "~0", -1)
+	p = strings.Replace(p, "/", "~1", -1)
+	return p
+}
+
+func AddNPUAllocationPatch(allocChipID string, template string, timestamp string) string {
+	var allocValue string
+	if template != "" {
+		allocValue = fmt.Sprintf("%s-%s", allocChipID, template)
+	} else {
+		allocValue = allocChipID
+	}
+
+	return fmt.Sprintf(`[{"op": "add", "path": "/metadata/annotations/%s", "value":"%s"},`+
+		`{"op": "add", "path": "/metadata/annotations/%s", "value": "%s"}]`,
+		escapeJSONPointer(PodPredicateTime), timestamp,
+		escapeJSONPointer(AscendNPUCore), allocValue)
 }

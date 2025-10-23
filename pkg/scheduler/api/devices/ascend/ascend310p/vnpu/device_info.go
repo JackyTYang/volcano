@@ -1,10 +1,10 @@
 package vnpu
 
 import (
-	"errors"
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -108,7 +108,7 @@ func (ns *NPUDevices) SubResource(pod *v1.Pod) {
 	if !ok {
 		return
 	}
-	
+
 	ascendNPUCoreSplit := strings.Split(coreAnnotation, "-")
 
 	var allocChipID, chipVTemplate string
@@ -151,12 +151,9 @@ func (ns *NPUDevices) FilterNode(pod *v1.Pod, schedulePolicy string) (int, strin
 }
 
 func (ns *NPUDevices) ScoreNode(pod *v1.Pod, schedulePolicy string) float64 {
+	// implement in deviceShare plugin score policy
 	return 0
 }
-
-//func (ns *NPUDevices) ScoreBatchNodes(pod *v1.Pod, schedulePolicy string, nodeInfos []*NodeInf, npuDevices []*NPUDevice) []float64 {
-//	return 0
-//}
 
 func (ns *NPUDevices) Allocate(kubeClient kubernetes.Interface, pod *v1.Pod) error {
 	klog.V(4).Infoln("DeviceSharing:Into AllocateToPod", pod.Name)
@@ -168,6 +165,7 @@ func (ns *NPUDevices) Allocate(kubeClient kubernetes.Interface, pod *v1.Pod) err
 	podResReq, err := ns.GetPodResource(pod)
 	if err != nil {
 		klog.V(LogErrorLev).Infof("%s UseAnnotation get require task resource failed: %s", ns.Name, err)
+		return err
 	}
 
 	_, ok := ns.DowngradeCache[pod.Name]
@@ -181,7 +179,7 @@ func (ns *NPUDevices) Allocate(kubeClient kubernetes.Interface, pod *v1.Pod) err
 		return err
 	}
 	klog.V(LogDebugLev).Infof("dynamic vnpu UseAnnotation allocChipID:<%s>", allocChipID)
-	ns.SetNPUTopologyToPodFn(pod, podResReq, allocChipID, ns.VT)
+	ns.SetNPUTopologyToPodFn(kubeClient, pod, podResReq, allocChipID, ns.VT)
 	return nil
 }
 

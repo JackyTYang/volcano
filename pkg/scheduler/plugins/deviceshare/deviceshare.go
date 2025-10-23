@@ -46,7 +46,7 @@ const (
 
 	VGPUEnable = "deviceshare.VGPUEnable"
 
-	ASCEND310PvGPU = "deviceshare.ASCEND310PVGPUEnable"
+	ASCEND310PvGPU = "deviceshare.ASCEND310PVNPUEnable"
 
 	SchedulePolicyArgument = "deviceshare.SchedulePolicy"
 	ScheduleWeight         = "deviceshare.ScheduleWeight"
