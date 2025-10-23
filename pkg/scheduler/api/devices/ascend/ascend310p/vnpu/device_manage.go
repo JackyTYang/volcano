@@ -369,6 +369,8 @@ func (ns *NPUDevices) checkNodeNum(pod *v1.Pod) error {
 	}
 
 	nodeNPUNum, ok := ns.Idle[AscendNPUCore]
+	klog.V(3).Infof("DEBUG: nodeNPUNum from ns.Idle[huawei.com/npu-core]: %f", nodeNPUNum)
+	klog.V(3).Infof("DEBUG: nodeNPUNum from ns.Idle[huawei.com/npu-core]: %d", int(nodeNPUNum/NPUHexKilo))
 	reqNPUNum, err := ns.getAiCoreNumFromPod(pod)
 	if err != nil {
 		return fmt.Errorf("failed to get requested NPU number from pod: %v", err)
@@ -376,7 +378,10 @@ func (ns *NPUDevices) checkNodeNum(pod *v1.Pod) error {
 	if !ok {
 		return fmt.Errorf("not have %s", AscendNPUCore)
 	}
-	if int(nodeNPUNum/NPUHexKilo) < reqNPUNum {
+	//if int(nodeNPUNum/NPUHexKilo) < reqNPUNum {
+	//	return fmt.Errorf("node not meet task request %s:%d", AscendNPUCore, reqNPUNum)
+	//}
+	if int(nodeNPUNum) < reqNPUNum {
 		return fmt.Errorf("node not meet task request %s:%d", AscendNPUCore, reqNPUNum)
 	}
 	return nil

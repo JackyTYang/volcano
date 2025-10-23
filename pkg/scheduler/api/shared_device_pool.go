@@ -79,6 +79,7 @@ type Devices interface {
 // make sure GPUDevices implements Devices interface
 var _ Devices = new(gpushare.GPUDevices)
 var _ Devices = new(vgpu.GPUDevices)
+var _ Devices = new(vnpu.NPUDevices)
 
 var RegisteredDevices = []string{
 	gpushare.DeviceName,

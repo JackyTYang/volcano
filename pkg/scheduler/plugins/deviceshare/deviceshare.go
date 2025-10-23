@@ -172,6 +172,7 @@ func initializeDevicesWithSession(ssn *framework.Session) {
 func initializeDevice(device api.Devices, ssn *framework.Session, nodeInfo *api.NodeInfo) error {
 	switch d := device.(type) {
 	case *vnpu.NPUDevices:
+		klog.V(3).Infof("initialize ascend310p device.")
 		return vnpu310p.InitVNPUDevice(d, ssn, nodeInfo)
 	default:
 		return nil
