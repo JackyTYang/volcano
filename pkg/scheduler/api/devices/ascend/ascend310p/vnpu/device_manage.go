@@ -226,7 +226,9 @@ func (ns *NPUDevices) GetPodResource(pod *v1.Pod) (VResource, error) {
 	}
 	tempCore := ns.TotalRes.Aicore
 	if tempCore == 0 {
-		return VResource{}, fmt.Errorf("%s not inital for Aicore is 0", ns.NodeInf.Name)
+		klog.V(LogInfoLev).Infof("%s not inital for Aicore is 0", ns.NodeInf.Name)
+		//return VResource{}, fmt.Errorf("%s not inital for Aicore is 0", ns.NodeInf.Name)
+		return VResource{}, nil
 	}
 	if ns.IsResourceWholeCard(coreNum) {
 		res := VResource{

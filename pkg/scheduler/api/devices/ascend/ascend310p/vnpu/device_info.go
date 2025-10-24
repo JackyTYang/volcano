@@ -66,6 +66,10 @@ func NewNPUDevices(name string, node *v1.Node) *NPUDevices {
 
 // AddResource adds the pod to NPU pool if it is assigned
 func (ns *NPUDevices) AddResource(pod *v1.Pod) {
+	if !ns.HasDeviceRequest(pod) {
+		return
+	}
+
 	//Upper level mechanism has assured that the pod(task) has been scheduled to this node
 	//Judge if the pod has resource request on this device
 	podRes, err := ns.GetPodResource(pod)
