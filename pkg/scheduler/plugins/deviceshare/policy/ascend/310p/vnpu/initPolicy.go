@@ -186,6 +186,8 @@ func getConfigurationByKey(configurations []config.Configuration) map[string]str
 }
 
 func initNodeFromSsn(device *vnpu.NPUDevices, nodeInfo *api.NodeInfo) {
+	klog.V(vnpu.LogDebugLev).Infof("Entering initNodeFron Ssn function")
+
 	// 1.obtain device infos, and if node not in session, its device info should not keep in cache
 	deviceInfos := k8s.GetDeviceInfoAndSetInformerStart(nodeInfo, device.FrameAttr.UseClusterD,
 		device.FrameAttr.SelfMaintainAvailCard)
@@ -203,6 +205,8 @@ func initNodeFromSsn(device *vnpu.NPUDevices, nodeInfo *api.NodeInfo) {
 // initNPUNodeByNodeInf init NPU node from node info and cm.
 func initNPUNodeByNodeInf(device *vnpu.NPUDevices, npuNode *api.NodeInfo, deviceInfo k8s.NodeDeviceInfoWithID,
 	nodeInfoOfNodeD k8s.NodeDNodeInfo, vJobTemplate map[string]map[string]vnpu.VResource) error {
+	klog.V(vnpu.LogDebugLev).Infof("Entering initNPUNodeByNodeInf function")
+
 	if device == nil || npuNode == nil {
 		klog.V(vnpu.LogInfoLev).Infof("InitNPUNodeByNodeInf failed: %s.", vnpu.ArgumentError)
 		return errors.New(vnpu.ArgumentError)
@@ -549,11 +553,10 @@ func setTotalResAndChipNumByTemplates(device *vnpu.NPUDevices) error {
 	if !ok {
 		return fmt.Errorf("getTotalResFromNpuNode no resource <%s>", vnpu.AscendNPUCore)
 	}
-	//in release1.9, resource is updated to node in millicore
-	//device.NPUDevice.TotalRes.Aicore = int(totalCore / vnpu.NPUHexKilo)
-	device.NPUDevice.TotalRes.Aicore = int(totalCore)
-	klog.V(3).Infof("DEBUG: node %s, totalCore from Capability: %f", device.NodeInf.Name, totalCore)
-	klog.V(3).Infof("DEBUG: node %s, after division: %d", device.NodeInf.Name, int(totalCore/vnpu.NPUHexKilo))
+
+	device.NPUDevice.TotalRes.Aicore = int(totalCore / vnpu.NPUHexKilo)
+	klog.V(vnpu.LogDebugLev).Infof("DEBUG: node %s, totalCore from Capability: %f", device.NodeInf.Name, totalCore)
+	klog.V(vnpu.LogDebugLev).Infof("DEBUG: node %s, after division: %d", device.NodeInf.Name, int(totalCore/vnpu.NPUHexKilo))
 
 	numCorePerChip, err := getVChipCoreNum(device)
 	if err != nil || numCorePerChip == 0 {
@@ -766,15 +769,12 @@ func getRealHealthyDeviceList(device *vnpu.NPUDevices, deviceKey, oldList, newLi
 	oldDeviceList := strings.Split(oldList, ",")
 
 	// if cache is not equal k8s or device info is equal k8s. update by device info
-	//if int(device.Idle[v1.ResourceName(deviceKey)]/vnpu.NPUHexKilo) != len(oldDeviceList) ||
-	//	int(device.Idle[v1.ResourceName(deviceKey)]/vnpu.NPUHexKilo) == len(newDeviceList) {
-	//	return newList
-	//}
-	if int(device.Idle[v1.ResourceName(deviceKey)]) != len(oldDeviceList) ||
-		int(device.Idle[v1.ResourceName(deviceKey)]) == len(newDeviceList) {
+	if int(device.Idle[v1.ResourceName(deviceKey)]/vnpu.NPUHexKilo) != len(oldDeviceList) ||
+		int(device.Idle[v1.ResourceName(deviceKey)]/vnpu.NPUHexKilo) == len(newDeviceList) {
 		return newList
 	}
-	klog.V(3).Infof("DEBUG: node %s, totalIdle from Capability: %d", device.NodeInf.Name, int(device.Idle[v1.ResourceName(deviceKey)]))
+
+	klog.V(vnpu.LogDebugLev).Infof("DEBUG: node %s, totalIdle from Capability: %d", device.NodeInf.Name, int(device.Idle[v1.ResourceName(deviceKey)]/vnpu.NPUHexKilo))
 
 	oldDevices := make(map[string]struct{})
 	for _, device := range oldDeviceList {
@@ -817,6 +817,8 @@ func syncAnnotation(device *vnpu.NPUDevices, npuNode *api.NodeInfo, nodeInfoOfNo
 
 // getNPUNodeCapacity get npu node Capacity by diff volcano version
 func getNPUNodeCapacity(npuNode *api.NodeInfo) map[v1.ResourceName]float64 {
+	klog.V(vnpu.LogDebugLev).Infof("Enter getNPUNodeCapacity function")
+
 	valueOfP := reflect.ValueOf(*npuNode)
 	if valueOfP.Kind() != reflect.Struct {
 		return nil

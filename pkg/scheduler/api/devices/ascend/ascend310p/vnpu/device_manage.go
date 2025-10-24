@@ -336,7 +336,6 @@ func (ns *NPUDevices) getAiCoreNumFromPod(pod *v1.Pod) (int, error) {
 		return int(coreNum.Value()), nil
 	}
 
-	klog.V(LogInfoLev).Infof("No containers in this pod requests huawei.com/npu-core")
 	return 0, nil
 
 	// original npu scheduling logic may lead to too much inval error in pod's log file
@@ -369,7 +368,7 @@ func (ns *NPUDevices) checkNodeNum(pod *v1.Pod) error {
 	}
 
 	nodeNPUNum, ok := ns.Idle[AscendNPUCore]
-	klog.V(3).Infof("DEBUG: nodeNPUNum from ns.Idle[huawei.com/npu-core]: %f", nodeNPUNum)
+	klog.V(3).Infof("DEBUG: nodeNPUNum millicore from ns.Idle[huawei.com/npu-core]: %f", nodeNPUNum)
 	klog.V(3).Infof("DEBUG: nodeNPUNum from ns.Idle[huawei.com/npu-core]: %d", int(nodeNPUNum/NPUHexKilo))
 	reqNPUNum, err := ns.getAiCoreNumFromPod(pod)
 	if err != nil {
@@ -378,10 +377,7 @@ func (ns *NPUDevices) checkNodeNum(pod *v1.Pod) error {
 	if !ok {
 		return fmt.Errorf("not have %s", AscendNPUCore)
 	}
-	//if int(nodeNPUNum/NPUHexKilo) < reqNPUNum {
-	//	return fmt.Errorf("node not meet task request %s:%d", AscendNPUCore, reqNPUNum)
-	//}
-	if int(nodeNPUNum) < reqNPUNum {
+	if int(nodeNPUNum/NPUHexKilo) < reqNPUNum {
 		return fmt.Errorf("node not meet task request %s:%d", AscendNPUCore, reqNPUNum)
 	}
 	return nil
