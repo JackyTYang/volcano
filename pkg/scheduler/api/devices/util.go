@@ -31,6 +31,15 @@ limitations under the License.
 package devices
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -80,4 +89,91 @@ func NewClient() (*kubernetes.Clientset, error) {
 	}
 	client, err := kubernetes.NewForConfig(config)
 	return client, err
+}
+
+func GetNode(nodename string) (*v1.Node, error) {
+	if nodename == "" {
+		klog.ErrorS(nil, "Node name is empty")
+		return nil, fmt.Errorf("nodename is empty")
+	}
+
+	klog.V(5).InfoS("Fetching node", "nodeName", nodename)
+	n, err := GetClient().CoreV1().Nodes().Get(context.Background(), nodename, metav1.GetOptions{})
+	if err != nil {
+		switch {
+		case apierrors.IsNotFound(err):
+			klog.ErrorS(err, "Node not found", "nodeName", nodename)
+			return nil, fmt.Errorf("node %s not found", nodename)
+		case apierrors.IsUnauthorized(err):
+			klog.ErrorS(err, "Unauthorized to access node", "nodeName", nodename)
+			return nil, fmt.Errorf("unauthorized to access node %s", nodename)
+		default:
+			klog.ErrorS(err, "Failed to get node", "nodeName", nodename)
+			return nil, fmt.Errorf("failed to get node %s: %v", nodename, err)
+		}
+	}
+
+	klog.V(5).InfoS("Successfully fetched node", "nodeName", nodename)
+	return n, nil
+}
+
+func MarkAnnotationsToDelete(devType string, nn string) error {
+	tmppat := make(map[string]string)
+	tmppat[devType] = "Deleted_" + time.Now().Format(time.DateTime)
+	n, err := GetNode(nn)
+	if err != nil {
+		klog.Errorln("get node failed", err.Error())
+		return err
+	}
+	return PatchNodeAnnotations(n, tmppat)
+}
+
+func PatchPodAnnotations(kubeClient kubernetes.Interface, pod *v1.Pod, annotations map[string]string) error {
+	type patchMetadata struct {
+		Annotations map[string]string `json:"annotations,omitempty"`
+	}
+	type patchPod struct {
+		Metadata patchMetadata `json:"metadata"`
+		//Spec     patchSpec     `json:"spec,omitempty"`
+	}
+
+	p := patchPod{}
+	p.Metadata.Annotations = annotations
+
+	bytes, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	_, err = kubeClient.CoreV1().Pods(pod.Namespace).
+		Patch(context.Background(), pod.Name, k8stypes.StrategicMergePatchType, bytes, metav1.PatchOptions{})
+	if err != nil {
+		klog.Errorf("patch pod %v failed, %v", pod.Name, err)
+	}
+
+	return err
+}
+
+func PatchNodeAnnotations(node *v1.Node, annotations map[string]string) error {
+	type patchMetadata struct {
+		Annotations map[string]string `json:"annotations,omitempty"`
+	}
+	type patchPod struct {
+		Metadata patchMetadata `json:"metadata"`
+		//Spec     patchSpec     `json:"spec,omitempty"`
+	}
+
+	p := patchPod{}
+	p.Metadata.Annotations = annotations
+
+	bytes, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	_, err = GetClient().CoreV1().Nodes().
+		Patch(context.Background(), node.Name, k8stypes.StrategicMergePatchType, bytes, metav1.PatchOptions{})
+	if err != nil {
+		klog.Infoln("annotations=", annotations)
+		klog.Infof("patch node %v failed, %v", node.Name, err)
+	}
+	return err
 }
